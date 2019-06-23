@@ -7,6 +7,7 @@ GEM
       bson (~> 4.1)
 
 PLATFORMS
+  ruby
   x64-mingw32
 
 DEPENDENCIES
@@ -14,4 +15,4 @@ DEPENDENCIES
   mongo
 
 BUNDLED WITH
-   1.13.0
+   1.13.7

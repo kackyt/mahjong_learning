@@ -8,12 +8,83 @@ require 'mongo'
 
 Bundler.require
 
+class Player
+  attr_reader :pais, :naki_mentsu, :kawa
+
+  def initialize(haipai)
+    @pais = haipai
+    @naki_mentsu = []
+    @kawa = []
+  end
+
+  def to_hash
+    {
+      hais: @pais,
+      naki: @naki_mentsu,
+      kawa: @kawa
+    }
+  end
+
+  def tsumohai(pai)
+    @pais << pai
+  end
+
+  def dahai(pai, riichi, tsumogiri)
+    pai[:riichi] = riichi
+    pai[:tsumogiri] = tsumogiri
+    @kawa << pai
+  end
+
+  def tii(pais, naki_pai)
+    pais.each do |item|
+      @pais.delete_at(@pais.find_index(item))
+    end
+    pais << naki_pai
+    @naki_mentsu << { type: 'shuntsu', hais: pais }
+  end
+
+  def pon(naki_pai)
+    pais = []
+    2.times {
+      idx = @pais.find_index { |x| x[:no] == naki_pai[:no] }
+      pais << @pais[idx]
+      @pais.delete_at(idx)
+    }
+
+    pais << naki_pai
+    @naki_mentsu << { type: 'koutsu', hais: pais }
+  end
+
+  def tsumo
+  end
+
+  def ron(pai)
+    @pais << pai
+  end
+
+  def minkan(pai)
+    pais = @pais.find_all { |x| x[:no] == pai[:no] }
+    @pais.reject! { |x| x[:no] == pai[:no] }
+    pais_a = pais.to_a
+    pais_a << pai
+    @naki_mentsu << { type: 'minkan', hais: pais_a  }
+  end
+
+  def ankan(pai)
+    pais = @pais.find_all { |x| x[:no] == pai[:no] }
+    @pais.reject! { |x| x[:no] == pai[:no] }
+    @naki_mentsu << { type: 'ankan', hais: pais.to_a }
+  end
+end
+
 class TonpuKyoku
   attr_reader :kyoku, :honba, :riichibou, :doras, :uradoras, :haipais, :actions, :result, :kazes
   def initialize
     @kazes = []
     @haipais = []
     @actions = []
+    @states = []
+    @players = []
   end
   
   def to_hash
@@ -24,7 +95,7 @@ class TonpuKyoku
       doras: @doras,
       uradoras: @uradoras,
       haipais: @haipais,
-      actions: @actions,
+      states: @states,
       result: @result,
       kazes: @kazes
     }
@@ -76,7 +147,55 @@ class TonpuKyoku
     
     hais
   end
-  
+
+
+  # actionをなめて、手牌をシミュレートする
+  def simulate_action
+    prev_action = nil
+    riichi = false
+    4.times { |i|
+      @players << Player.new(@haipais[i])
+    }
+    for action in @actions
+      case action[:type]
+      when 'tsumohai'
+        @players[action[:self]-1].tsumohai(action[:hais][0])
+      when 'dahai'
+        @players[action[:self]-1].dahai(action[:hais][0], action[:tsumogiri], riichi)
+        riichi = false
+      when 'riichi'
+        riichi = true
+      when 'tii'
+        aite = prev_action[:self]-1
+        naki_hai = @players[aite].kawa.pop
+        @players[action[:self]-1].tii(actions[:hais], naki_hai)
+      when 'pon'
+        aite = prev_action[:self]-1
+        naki_hai = @players[aite].kawa.pop
+        @players[action[:self]-1].pon(naki_hai)
+      when 'kan'
+        if prev_action[:type] == 'dahai'
+        else
+        end
+      when 'ron'
+        aite = prev_action[:self]-1
+        naki_hai = @players[aite].kawa.pop
+        @players[action[:self]-1].ron(naki_hai)
+      when 'tsumo'
+        # do nothing
+      end
+
+      unless riichi
+        # stateを保存
+        tmp = Marshal.dump(@players)
+        players = Marshal.load(tmp)
+
+        @states << { players: players.map { |x| x.to_hash }, action: action }
+        riichi = false
+      end
+      prev_action = action
+    end
+  end
 
   def parse(instream)
     line = instream.gets.chomp
@@ -145,7 +264,7 @@ class TonpuKyoku
         
         case chs[1]
         when 'G'
-          action[:type] = 'tsumo'
+          action[:type] = 'tsumohai'
           action[:hais] = hais(str[2 .. -1])
         when 'd'
           action[:type] = 'dahai'
@@ -178,7 +297,7 @@ class TonpuKyoku
         @actions.push(action)
       end
     end
-    
+    simulate_action
     true
   end
 end
@@ -219,7 +338,7 @@ class TonpuHaifu
           sec: @_date.sec
         }
       end
-      
+
       m = instream.gets.chomp.match(/持点([0-9]+) (.+)/)
       
       if m

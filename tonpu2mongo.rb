@@ -27,17 +27,19 @@ class Player
 
   def tsumohai(pai)
     @pais << pai
+    @pais.sort_by! {|p| p[:no] }
   end
 
   def dahai(pai, riichi, tsumogiri)
     pai[:riichi] = riichi
     pai[:tsumogiri] = tsumogiri
+    @pais.delete_at(@pais.find_index{|item| item[:no] == pai[:no] && item[:aka] == pai[:aka]})
     @kawa << pai
   end
 
   def tii(pais, naki_pai)
     pais.each do |item|
-      @pais.delete_at(@pais.find_index(item))
+      @pais.delete_at(@pais.find_index {|p| p[:no] == item[:no] && p[:aka] == item[:aka] })
     end
     pais << naki_pai
     @naki_mentsu << { type: 'shuntsu', hais: pais }
@@ -94,7 +96,6 @@ class TonpuKyoku
       riichibou: @riichibou,
       doras: @doras,
       uradoras: @uradoras,
-      haipais: @haipais,
       states: @states,
       result: @result,
       kazes: @kazes

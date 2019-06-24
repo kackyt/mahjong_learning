@@ -324,10 +324,11 @@ class TonpuHaifu
   
   def parse(instream)
     begin
-      until m = instream.gets.match(/==== .+ ([0-9]{4}\/[0-9]{2}\/[0-9]{2} [0-9]{2}:[0-9]{2}) ====/)
+      until ((str = instream.gets) == nil) || m = str.match(/==== .+ ([0-9]{4}\/[0-9]{2}\/[0-9]{2} [0-9]{2}:[0-9]{2}) ====/)
         return false if instream.eof?
       end
-    
+      return false if str == nil
+
       if m
         @_date = DateTime.strptime(m.captures[0], '%Y/%m/%d %H:%M')
         @date = {

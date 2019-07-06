@@ -1,4 +1,4 @@
-#!/usr/bin/env ruby
+﻿#!/usr/bin/env ruby
 # -*- encoding: utf-8 -*-
 
 require 'bundler/setup'
@@ -30,7 +30,7 @@ class Player
     @pais.sort_by! {|p| p[:no] }
   end
 
-  def dahai(pai, riichi, tsumogiri)
+  def dahai(pai, tsumogiri, riichi)
     pai[:riichi] = riichi
     pai[:tsumogiri] = tsumogiri
     @pais.delete_at(@pais.find_index{|item| item[:no] == pai[:no] && item[:aka] == pai[:aka]})
@@ -247,8 +247,8 @@ class TonpuKyoku
         @haipais.push(hais(m.captures[1]))
       end
     end
-    
-    m = /\[表ドラ\]()\]([^ ]+)\[裏ドラ\]()\]([^ ]+)/.match(line)
+    line = instream.gets.chomp
+    m = /\[表ドラ\]([^ ]+)\s+\[裏ドラ\]([^ ]+)/.match(line)
     if m
       @doras = hais(m.captures[0])
       @uradoras = hais(m.captures[1])

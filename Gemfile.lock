@@ -3,8 +3,13 @@ GEM
   specs:
     bson (4.1.1)
     bson_ext (1.5.1)
+    mini_portile2 (2.4.0)
     mongo (2.3.0)
       bson (~> 4.1)
+    nokogiri (1.10.3)
+      mini_portile2 (~> 2.4.0)
+    nokogiri (1.10.3-x64-mingw32)
+      mini_portile2 (~> 2.4.0)
 
 PLATFORMS
   ruby
@@ -13,6 +18,7 @@ PLATFORMS
 DEPENDENCIES
   bson_ext
   mongo
+  nokogiri
 
 BUNDLED WITH
    1.13.7

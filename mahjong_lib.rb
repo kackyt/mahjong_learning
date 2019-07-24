@@ -67,6 +67,11 @@ class Player
     @pais.reject! { |x| x[:no] == pai[:no] }
     @naki_mentsu << { type: 'ankan', hais: pais.to_a }
   end
+  
+  def kakan(pai, target)
+    target[:type] = 'minkan'
+    target[:hais] << pai
+  end
 end
 
 class Kyoku
@@ -148,7 +153,18 @@ class Kyoku
         @players[action[:self]-1].pon(naki_hai)
       when 'kan'
         if prev_action[:type] == 'dahai'
+          naki_hai = @players[aite].kawa.pop
+          @players[action[:self]-1].minkan(naki_hai)
         else
+          target = @players[action[:self]-1].naki_mentsu.find {|item| 
+            puts "item #{item}"
+            puts "action #{action}"
+            item[:type] == 'koutsu' && item[:hais][0][:no] == action[:hais][0][:no] }
+          if target
+            @players[action[:self]-1].kakan(action[:hais][0], target)
+          else
+            @players[action[:self]-1].ankan(action[:hais][0])
+          end
         end
       when 'ron'
         aite = prev_action[:self]-1

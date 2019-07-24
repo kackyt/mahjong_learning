@@ -18,7 +18,7 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
   def num_to_hai(num)
     hai_num = (num / 4).to_i
     hai_id = num % 4
-    is_aka = @has_aka && hai_id == 0 && hai_num < 27 && (hai_num % 9) == 5
+    is_aka = @has_aka && hai_id == 0 && hai_num < 27 && (hai_num % 9) == 4
     { no: hai_num, aka: is_aka }
   end
 

@@ -224,11 +224,53 @@ class TonpuKyoku
     end
     
     line = instream.gets
-    m = /([^ ]+)/.match(line)
-    if m
-      @result[:yaku] = m.captures[0]
-    end
+    # 役判定
+    yakus = line.split(/\s+/)
+    yakus.shift
     
+    m = /^([0-9]+)/.match(yakus[0])
+    if m
+      @result[:fu] = m.captures[0].to_i
+      @result[:mangan] = 0
+      m2 = /(.+)飜/.match(yakus[1])
+      if m2
+        fan = m2.captures[0]
+        @result[:han] = fan.tr('〇一二三四五六七八九', '0123456789').to_i
+      end
+      yakus.shift(2)
+    elsif yakus[0] =~ /^満貫/
+      @result[:han] = 4
+      @result[:fu] = 30
+      @result[:mangan] = 1
+      yakus.shift
+    elsif yakus[0] =~ /^ハネ満/
+      @result[:han] = 6
+      @result[:fu] = 30
+      @result[:mangan] = 2
+      yakus.shift
+    elsif yakus[0] =~ /^倍満/
+      @result[:han] = 8
+      @result[:fu] = 30
+      @result[:mangan] = 3
+      yakus.shift
+    elsif yakus[0] =~ /^三倍満/
+      @result[:han] = 11
+      @result[:fu] = 30
+      @result[:mangan] = 4
+      yakus.shift
+    elsif yakus[0] =~ /^役満/
+      @result[:han] = 13
+      @result[:fu] = 30
+      @result[:mangan] = 5
+      yakus.shift
+    elsif yakus[0] =~ /^流局/
+      @result[:han] = 0
+      @result[:fu] = 0
+      @result[:mangan] = 0
+      yakus.shift
+    end
+    @result[:yaku] = yakus
+
     0.upto(3) do |idx|
       line = instream.gets.chomp
       m = /\[[1-4](東|南|西|北)\]([^ ]+)/.match(line)

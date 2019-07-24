@@ -11,6 +11,7 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
 
   def initialize
     @has_aka = false
+    @is_valid = true
   end
 
   # 天鳳の牌番号をhash形式に変換する
@@ -21,8 +22,13 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
     { no: hai_num, aka: is_aka }
   end
 
-  def start_element(name, attr=nil)
-    puts "start_element name = #{name} attr = #{attr}"
+  def start_element(name, attr_array=nil)
+    attr = {}
+    attr_array.each do |item|
+      attr[item[0]] = item[1]
+    end
+    puts "name = #{name} attr = #{attr}"
+    return if @is_valid == false && name != 'UN' # 局データが無効
     case name
     when 'GO'
       # 赤牌の判定
@@ -34,12 +40,18 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
       end
     when 'UN'
       # プレーヤー情報
-      rate = attr['rate'].split(',').map{ |x| x.to_f }
-      @current_haifu = Haifu.new([
-      {name: attr['n0'], rate: rate[0] },
-      {name: attr['n1'], rate: rate[1] },
-      {name: attr['n2'], rate: rate[2] },
-      {name: attr['n3'], rate: rate[3] }])
+      unless attr['rate'] && attr['n0'] && attr['n1'] && attr['n2'] && attr['n3']
+        # 無効なデータ
+        @is_valid = false
+      else
+        rate = attr['rate'].split(',').map{ |x| x.to_f }
+        @current_haifu = Haifu.new([
+        {name: attr['n0'], rate: rate[0] },
+        {name: attr['n1'], rate: rate[1] },
+        {name: attr['n2'], rate: rate[2] },
+        {name: attr['n3'], rate: rate[3] }])
+        @is_valid = true
+      end
     when 'TAIKYOKU'
       # do nothing
     when 'INIT'
@@ -76,7 +88,7 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
         pais = []
         for i in 0..2 do
           if i != r
-            is_aka = @has_aka && pai_ids[i] == 0 && n == 4
+            is_aka = @has_aka && pai_ids[i] == 0 && n + i == 4
             pais << { no: color * 9 + n + i, aka: is_aka }
           end
         end
@@ -121,7 +133,6 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
       end
 
       fu, _, mangan = attr['ten'].split(',').map { |x| x.to_i }
-      yakus = attr['yaku'].split(',').map { |x| x.to_i }
       han = 0
       sc = attr['sc'].split(',').map { |x| x.to_i }
 
@@ -140,11 +151,20 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
       ]
 
       yaku = []
-
-      # 役の走査
-      (0..yakus.length).step(2) do |idx|
-        yaku << yaku_table[yakus[idx]]
-        han += yakus[idx+1]
+      
+      if attr['yaku']
+        yakus = attr['yaku'].split(',').map { |x| x.to_i }
+        # 役の走査
+        (0..yakus.length-1).step(2) do |idx|
+          yaku << yaku_table[yakus[idx]]
+          han += yakus[idx+1]
+        end
+      elsif attr['yakuman']
+        yakus = attr['yakuman'].split(',').map { |x| x.to_i }
+        yakus.each do |num|
+          yaku << yaku_table[num]
+          han += 13
+        end
       end
 
       @current_kyoku.add_result({
@@ -191,16 +211,20 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
       })
     else
       if num = ['T', 'U', 'V', 'W'].index { |x| name.start_with?(x) }
+        # ツモギリ判定のためにツモ牌Noを記憶
+        @tsumohai = name[1..-1].to_i
         @current_kyoku.add_action({
           type: 'tsumohai',
           self: num + 1,
-          hais: [num_to_hai(name[1..-1].to_i)]
+          hais: [num_to_hai(@tsumohai)]
         })
       elsif num = ['D', 'E', 'F', 'G'].index { |x| name.start_with?(x) }
+        sutehai = name[1..-1].to_i
         @current_kyoku.add_action({
           type: 'dahai',
           self: num + 1,
-          hais: [num_to_hai(name[1..-1].to_i)]
+          hais: [num_to_hai(sutehai)],
+          tsumogiri: @tsumohai == sutehai
         })
       end
     end
@@ -222,9 +246,12 @@ tenhou_doc = TenhouDocument.new
 parser = Nokogiri::XML::SAX::Parser.new(tenhou_doc)
 
 Dir.glob("#{dir}/**/*").each do |file|
-  Zlib::GzipReader.open(file) do |input|
-    xml_str = input.read # いったん全部解凍する
-    parser.parse(xml_str)
-    coll.insert_one(doc.current_haifu.to_hash)
+  if FileTest.file?(file)
+    puts "open #{file}"
+    Zlib::GzipReader.open(file) do |input|
+      xml_str = input.read # いったん全部解凍する
+      parser.parse(xml_str)
+      coll.insert_one(tenhou_doc.current_haifu.to_hash)
+    end
   end
 end

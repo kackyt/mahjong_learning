@@ -82,6 +82,7 @@ class Kyoku
     @states = []
     @players = []
     @results = []
+    @uradoras = []
   end
 
   def to_hash
@@ -140,7 +141,7 @@ class Kyoku
       when 'tii'
         aite = prev_action[:self]-1
         naki_hai = @players[aite].kawa.pop
-        @players[action[:self]-1].tii(actions[:hais], naki_hai)
+        @players[action[:self]-1].tii(action[:hais], naki_hai)
       when 'pon'
         aite = prev_action[:self]-1
         naki_hai = @players[aite].kawa.pop
@@ -176,7 +177,7 @@ class Haifu
   def initialize(players)
     @players = players
     @kyokus = []
-    @is_valid = false
+    @is_valid = true
   end
 
   def add_kyoku(kyoku)

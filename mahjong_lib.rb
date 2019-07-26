@@ -55,6 +55,7 @@ class Player
   end
 
   def minkan(pai)
+    puts "#{@pais} pai #{pai}"
     pais = @pais.find_all { |x| x[:no] == pai[:no] }
     @pais.reject! { |x| x[:no] == pai[:no] }
     pais_a = pais.to_a
@@ -153,12 +154,11 @@ class Kyoku
         @players[action[:self]-1].pon(naki_hai)
       when 'kan'
         if prev_action[:type] == 'dahai'
+          aite = prev_action[:self]-1
           naki_hai = @players[aite].kawa.pop
           @players[action[:self]-1].minkan(naki_hai)
         else
           target = @players[action[:self]-1].naki_mentsu.find {|item| 
-            puts "item #{item}"
-            puts "action #{action}"
             item[:type] == 'koutsu' && item[:hais][0][:no] == action[:hais][0][:no] }
           if target
             @players[action[:self]-1].kakan(action[:hais][0], target)

@@ -62,10 +62,8 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
       [attr['hai0'], attr['hai1'], attr['hai2'], attr['hai3']].each do |haipai|
         haipais << haipai.split(',').map { |item| num_to_hai(item.to_i) }.sort_by { |item| item[:no] }
       end
-      if @current_kyoku
-        @current_kyoku.simulate_action
-        @current_haifu.add_kyoku(@current_kyoku)
-      end
+
+      end_kyoku
       @current_kyoku = Kyoku.new(kyoku_num, honba, riichi_bou,
         [num_to_hai(dora)], kaze_table[attr['oya'].to_i], haipais)
     when 'DORA'
@@ -98,23 +96,40 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
           self: who,
           hais: pais
         })
-      elsif (m & 0x0008) != 0
-        # ポン
-        @current_kyoku.add_action({
-          type: 'pon',
-          self: who
-        })
-      elsif (m & 0x0010) != 0
-        # 加えカン
-        @current_kyoku.add_action({
-          type: 'kan',
-          self: who
-        })
+      elsif (m & 0x0018) != 0
+        # ポン or 加えカン
+        p = m >> 9
+        r = p % 3
+        p = (p / 3).to_i
+        color = p / 9
+        n = p % 9
+
+        pais = [ { no: color * 9 + n, aka: @has_aka && color < 3 && n == 4 && r == 0}]
+        if (m & 0x0008 != 0)
+          @current_kyoku.add_action({
+            type: 'pon',
+            self: who,
+            hais: pais
+          })
+        else
+          @current_kyoku.add_action({
+            type: 'kan',
+            self: who,
+            hais: pais
+          })
+        end
       else
         # 暗カンまたは大明槓
+        p = m >> 8
+        r = p % 4
+        p = (p / 4).to_i
+        color = p / 9
+        n = p % 9
+        pais = [ { no: color * 9 + n, aka: @has_aka && color < 3 && n == 4 && r == 0}]
         @current_kyoku.add_action({
           type: 'kan',
-          self: who
+          self: who,
+          hais: pais
         })
       end
     when 'REACH'
@@ -229,8 +244,16 @@ class TenhouDocument < Nokogiri::XML::SAX::Document
       end
     end
   end
-  
+
   def end_element(name, attr=nil)
+  end
+
+  def end_kyoku
+    if @current_kyoku
+      @current_kyoku.simulate_action
+      @current_haifu.add_kyoku(@current_kyoku)
+      @current_kyoku = nil
+    end
   end
 end
 
@@ -251,6 +274,7 @@ Dir.glob("#{dir}/**/*").each do |file|
     Zlib::GzipReader.open(file) do |input|
       xml_str = input.read # いったん全部解凍する
       parser.parse(xml_str)
+      tenhou_doc.end_kyoku
       coll.insert_one(tenhou_doc.current_haifu.to_hash)
     end
   end
